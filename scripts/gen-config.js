@@ -7,6 +7,7 @@ const envVars = {
     D1_DATABASE_ID: process.env.D1_DATABASE_ID,
     ENABLE_AI_EXTRACT: process.env.ENABLE_AI_EXTRACT,
     EXTRACT_MODEL: process.env.EXTRACT_MODEL,
+    EXTRACT_PROVIDER: process.env.EXTRACT_PROVIDER,
     JWT_MIN_TTL: process.env.JWT_MIN_TTL,
     JWT_MAX_TTL: process.env.JWT_MAX_TTL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -33,7 +34,7 @@ const configContent = fs.readFileSync(configPath, 'utf-8');
 const config = JSON.parse(configContent);
 
 if (config.vars) {
-    ['ENABLE_AI_EXTRACT', 'EXTRACT_MODEL', 'JWT_MIN_TTL', 'JWT_MAX_TTL', 'ENABLE_AUTO_DEL', 'AUTO_DEL_TYPE', 'AUTO_DEL_TIME', 'WEBHOOK_URL', 'WEBHOOK_TYPE', 'WEBHOOK_TEMPLATE', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'TELEGRAM_TEMPLATE', 'TELEGRAM_TYPE']
+    ['ENABLE_AI_EXTRACT', 'EXTRACT_MODEL', 'EXTRACT_PROVIDER', 'JWT_MIN_TTL', 'JWT_MAX_TTL', 'ENABLE_AUTO_DEL', 'AUTO_DEL_TYPE', 'AUTO_DEL_TIME', 'WEBHOOK_URL', 'WEBHOOK_TYPE', 'WEBHOOK_TEMPLATE', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'TELEGRAM_TEMPLATE', 'TELEGRAM_TYPE']
         .forEach(key => {
             if (envVars[key]) config.vars[key] = envVars[key];
         });

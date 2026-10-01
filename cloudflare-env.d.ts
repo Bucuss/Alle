@@ -22,6 +22,7 @@ declare namespace Cloudflare {
 		PASSWORD: string;
 		ENABLE_AI_EXTRACT: string;
 		EXTRACT_MODEL: string;
+		EXTRACT_PROVIDER: string;
 		OPENAI_API_KEY: string;
 		OPENAI_BASE_URL: string;
 		DB: D1Database;

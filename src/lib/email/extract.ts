@@ -100,7 +100,14 @@ export default async function extract(
 ): Promise<ExtractResult> {
   try {
     let result: ExtractResult = { ...DEFAULT_EXTRACT_RESULT, category: normalizeCategory('', categories) };
-    if (env.OPENAI_BASE_URL && env.OPENAI_API_KEY) {
+    // EXTRACT_PROVIDER: 'openai' 走 OpenAI 兼容接口，'workers-ai' 走 Cloudflare Workers AI；
+    // 为空时自动判断（配了 OPENAI_BASE_URL/OPENAI_API_KEY 则走 openai）
+    const provider = (env.EXTRACT_PROVIDER || '').trim().toLowerCase();
+    if (provider === 'workers-ai') {
+      result = await extractWithCloudflareAI(content, env, categories);
+    } else if (provider === 'openai') {
+      result = await extractWithOpenAI(content, env, categories);
+    } else if (env.OPENAI_BASE_URL && env.OPENAI_API_KEY) {
       result = await extractWithOpenAI(content, env, categories);
     } else {
       result = await extractWithCloudflareAI(content, env, categories);
