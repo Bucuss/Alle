@@ -111,6 +111,13 @@ export default function EmailListItem({
               <div className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs text-muted-foreground">
                 {email.title}
               </div>
+              {email.category && (
+                <div className="mt-1">
+                  <span className="inline-block rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                    {email.category}
+                  </span>
+                </div>
+              )}
             </div>
 
             <VerificationDisplay email={email} />

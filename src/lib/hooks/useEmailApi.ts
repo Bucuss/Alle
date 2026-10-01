@@ -27,10 +27,16 @@ export const useEmailListInfinite = () => {
     return [...filters.recipients].sort();
   }, [filters.recipients]);
 
+  const normalizedCategories = useMemo(() => {
+    return [...filters.categories].sort();
+  }, [filters.categories]);
+
+  const searchParam = filters.search.trim();
+
   const readStatusParam = filters.readStatus === 'read' ? 1 : filters.readStatus === 'unread' ? 0 : undefined;
 
   return useInfiniteQuery({
-    queryKey: ['emails', { readStatus: filters.readStatus, emailTypes: normalizedEmailTypes, recipients: normalizedRecipients }],
+    queryKey: ['emails', { readStatus: filters.readStatus, emailTypes: normalizedEmailTypes, recipients: normalizedRecipients, search: searchParam, categories: normalizedCategories }],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await emailApi.fetchEmails({
         limit: 50,
@@ -38,6 +44,8 @@ export const useEmailListInfinite = () => {
         readStatus: readStatusParam,
         emailTypes: normalizedEmailTypes,
         recipients: normalizedRecipients,
+        search: searchParam,
+        categories: normalizedCategories,
       });
 
       return {

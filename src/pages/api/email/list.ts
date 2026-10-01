@@ -12,7 +12,7 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     return failure(res, 'Method not allowed', 405);
   }
 
-  const { limit, offset, read_status, email_type, recipient } = req.query;
+  const { limit, offset, read_status, email_type, recipient, q, category } = req.query;
 
   if (limit !== undefined) {
     const limitNum = Number(limit);
@@ -60,12 +60,37 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     recipientValue = normalizedRecipients;
   }
 
+  let searchValue: string | undefined;
+  if (q !== undefined) {
+    const qStr = Array.isArray(q) ? q[0] : q;
+    if (typeof qStr === 'string' && qStr.trim().length > 0) {
+      searchValue = qStr.trim().slice(0, 200);
+    }
+  }
+
+  let categoryValue: string | undefined;
+  if (category !== undefined) {
+    const categoryArray = Array.isArray(category) ? category : [category];
+    const normalizedCategories = categoryArray
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter((item) => item.length > 0)
+      .join(',');
+
+    if (!normalizedCategories) {
+      return failure(res, 'category must be a non-empty string', 400);
+    }
+
+    categoryValue = normalizedCategories;
+  }
+
   const params: ListParams = {
     limit: limit ? Number(limit) : 100,
     offset: offset ? Number(offset) : 0,
     readStatus: read_status ? Number(read_status) : undefined,
     emailType: email_type as string | undefined,
     recipient: recipientValue,
+    search: searchValue,
+    category: categoryValue,
   };
 
   try {

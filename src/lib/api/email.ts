@@ -8,6 +8,8 @@ interface FetchEmailsParams {
     readStatus?: number;
     emailTypes?: ExtractResultType[];
     recipients?: string[];
+    search?: string;
+    categories?: string[];
 }
 
 export async function fetchEmails({
@@ -16,6 +18,8 @@ export async function fetchEmails({
     readStatus,
     emailTypes = [],
     recipients = [],
+    search = '',
+    categories = [],
 }: FetchEmailsParams = {}) {
     const searchParams = new URLSearchParams({
         limit: String(limit),
@@ -32,6 +36,14 @@ export async function fetchEmails({
 
     if (recipients.length > 0) {
         searchParams.set('recipient', recipients.join(','));
+    }
+
+    if (search.trim().length > 0) {
+        searchParams.set('q', search.trim());
+    }
+
+    if (categories.length > 0) {
+        searchParams.set('category', categories.join(','));
     }
 
     const response = await apiFetch(`/api/email/list?${searchParams.toString()}`);

@@ -11,6 +11,8 @@ import { useTheme } from "next-themes";
 import useAuthStore from "@/lib/store/auth";
 import useTranslation from "@/lib/hooks/useTranslation";
 import DeleteDialog from "@/components/common/DeleteDialog";
+import ForwardRulesSection from "@/components/settings/ForwardRulesSection";
+import CategoriesSection from "@/components/settings/CategoriesSection";
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -184,6 +186,12 @@ export default function Settings() {
 
 
             </div>
+
+            {/* 转发规则 Section */}
+            <ForwardRulesSection />
+
+            {/* 邮件分类 Section */}
+            <CategoriesSection />
 
             {/* Account Section */}
             <div className="space-y-4">

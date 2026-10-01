@@ -1,5 +1,5 @@
-const PROMPT = `
-You are an expert email analyzer. Your task is to first UNDERSTAND the email content, then EXTRACT the most relevant information based on priority.
+const BASE_PROMPT = `
+You are an expert email analyzer. Your task is to first UNDERSTAND the email content, then EXTRACT the most relevant information based on priority, and finally CATEGORIZE the email.
 
 # Step 1: UNDERSTAND the Email
 Read the entire email carefully and determine its:
@@ -59,15 +59,52 @@ If the extracted content is in markdown link format [text](url):
 3. **Real Data Only**: Never invent, guess, or fabricate content
 4. **Complete URLs**: Links must be full, valid URLs as they appear in the email
 5. **Clean Extraction**: Return only the raw extracted content, no extra text
+`;
+
+/** 默认分类的归类指引（当用户没有自定义分类时作为参考） */
+const DEFAULT_CATEGORY_HINTS: Record<string, string> = {
+  '验证码': 'login/verification codes, OTP, 验证码',
+  '通知提醒': 'system notifications, shipping/delivery updates, alerts, 通知',
+  '账单财务': 'bills, invoices, payment receipts, bank statements, 账单/扣款',
+  '订阅营销': 'newsletters, promotions, marketing emails, 推广/订阅',
+  '工作事务': 'work-related correspondence, meetings, 项目/工作',
+  '个人往来': 'personal correspondence between individuals, 私人邮件',
+  '其他': 'anything that does not fit the above',
+};
+
+/**
+ * 构建带分类能力的提取 prompt。
+ * @param categories 当前启用的分类名列表（来自 D1，可在网页端自定义）
+ */
+export function buildExtractPrompt(categories: string[]): string {
+  const list = categories.length > 0 ? categories : Object.keys(DEFAULT_CATEGORY_HINTS);
+  const categoryLines = list
+    .map((name) => {
+      const hint = DEFAULT_CATEGORY_HINTS[name];
+      return hint ? `- "${name}": ${hint}` : `- "${name}"`;
+    })
+    .join('\n');
+
+  return `${BASE_PROMPT}
+# Step 3: CATEGORIZE the Email
+Classify this email into EXACTLY ONE of the following categories.
+Return the category name EXACTLY as written (including quotes content, without quotes):
+
+${categoryLines}
 
 # Output Format (JSON only)
 {
   "type": "auth_code|auth_link|service_link|subscription_link|other_link|none",
   "result": "the extracted code/link OR empty string",
-  "result_text": "the display text from markdown-format links."
+  "result_text": "the display text from markdown-format links.",
+  "category": "one of the category names listed above"
 }
 
 IMPORTANT: Return ONLY the JSON, no explanations or additional text.
 `;
+}
+
+// 兼容旧引用：默认 prompt（含默认分类）
+const PROMPT = buildExtractPrompt([]);
 
 export default PROMPT;

@@ -21,48 +21,76 @@ const email = sqliteTable('email', {
   emailResultText: text('email_result_text'),
   emailError: text('email_error'),
   readStatus: integer('read_status').default(0),
+  category: text('category'),
 });
+
+const UNCATEGORIZED = '__none__';
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+function buildConditions(params: ListParams) {
+  const { readStatus, emailType, recipient, search, category } = params;
+  const conditions = [];
+
+  if (readStatus === 1) {
+    conditions.push(sql`${email.readStatus} = 1`);
+  } else if (readStatus === 0) {
+    conditions.push(sql`${email.readStatus} = 0`);
+  }
+
+  if (emailType) {
+    const types = emailType.split(',').map(t => t.trim()).filter(Boolean);
+    if (types.length > 1) {
+      conditions.push(inArray(email.emailType, types));
+    } else if (types.length === 1) {
+      conditions.push(sql`${email.emailType} = ${types[0]}`);
+    }
+  }
+
+  if (recipient) {
+    const recipients = recipient.split(',').map(r => r.trim()).filter(Boolean);
+    if (recipients.length > 1) {
+      conditions.push(inArray(email.toAddress, recipients));
+    } else if (recipients.length === 1) {
+      conditions.push(sql`${email.toAddress} = ${recipients[0]}`);
+    }
+  }
+
+  if (search) {
+    const q = `%${escapeLike(search.trim())}%`;
+    conditions.push(sql`(${email.title} LIKE ${q} ESCAPE '\\' OR ${email.bodyText} LIKE ${q} ESCAPE '\\' OR ${email.fromAddress} LIKE ${q} ESCAPE '\\' OR ${email.fromName} LIKE ${q} ESCAPE '\\')`);
+  }
+
+  if (category) {
+    const cats = category.split(',').map(c => c.trim()).filter(Boolean);
+    const named = cats.filter(c => c !== UNCATEGORIZED);
+    const includeNone = cats.includes(UNCATEGORIZED);
+    if (named.length > 0 && includeNone) {
+      conditions.push(sql`(${inArray(email.category, named)} OR ${email.category} IS NULL OR ${email.category} = '')`);
+    } else if (named.length > 0) {
+      conditions.push(inArray(email.category, named));
+    } else if (includeNone) {
+      conditions.push(sql`(${email.category} IS NULL OR ${email.category} = '')`);
+    }
+  }
+
+  if (conditions.length === 0) return undefined;
+  return conditions.length === 1
+    ? conditions[0]
+    : conditions.reduce((acc, condition) => sql`${acc} AND ${condition}`);
+}
 
 const emailDB = {
   async list(params: ListParams = {}): Promise<Email[]> {
     const db = getDb();
-    const { limit = 100, offset = 0, readStatus, emailType, recipient } = params;
+    const { limit = 100, offset = 0 } = params;
+    const whereClause = buildConditions(params);
 
-    const conditions = [];
-
-    if (readStatus === 1) {
-      conditions.push(sql`${email.readStatus} = 1`);
-    } else if (readStatus === 0) {
-      conditions.push(sql`${email.readStatus} = 0`);
-    }
-
-    if (emailType) {
-      const types = emailType.split(',').map(t => t.trim()).filter(Boolean);
-      if (types.length > 1) {
-        conditions.push(inArray(email.emailType, types));
-      } else if (types.length === 1) {
-        conditions.push(sql`${email.emailType} = ${types[0]}`);
-      }
-    }
-
-    if (recipient) {
-      const recipients = recipient.split(',').map(r => r.trim()).filter(Boolean);
-      if (recipients.length > 1) {
-        conditions.push(inArray(email.toAddress, recipients));
-      } else if (recipients.length === 1) {
-        conditions.push(sql`${email.toAddress} = ${recipients[0]}`);
-      }
-    }
-
-    let query;
-    if (conditions.length > 0) {
-      const whereClause = conditions.length === 1
-        ? conditions[0]
-        : conditions.reduce((acc, condition) => sql`${acc} AND ${condition}`);
-      query = db.select().from(email).where(whereClause);
-    } else {
-      query = db.select().from(email);
-    }
+    const query = whereClause
+      ? db.select().from(email).where(whereClause)
+      : db.select().from(email);
 
     const rows = await query
       .orderBy(desc(email.sentAt))
@@ -73,43 +101,11 @@ const emailDB = {
 
   async count(params: ListParams = {}): Promise<number> {
     const db = getDb();
-    const { readStatus, emailType, recipient } = params;
+    const whereClause = buildConditions(params);
 
-    const conditions = [];
-
-    if (readStatus === 1) {
-      conditions.push(sql`${email.readStatus} = 1`);
-    } else if (readStatus === 0) {
-      conditions.push(sql`${email.readStatus} = 0`);
-    }
-
-    if (emailType) {
-      const types = emailType.split(',').map(t => t.trim()).filter(Boolean);
-      if (types.length > 1) {
-        conditions.push(inArray(email.emailType, types));
-      } else if (types.length === 1) {
-        conditions.push(sql`${email.emailType} = ${types[0]}`);
-      }
-    }
-
-    if (recipient) {
-      const recipients = recipient.split(',').map(r => r.trim()).filter(Boolean);
-      if (recipients.length > 1) {
-        conditions.push(inArray(email.toAddress, recipients));
-      } else if (recipients.length === 1) {
-        conditions.push(sql`${email.toAddress} = ${recipients[0]}`);
-      }
-    }
-
-    let query;
-    if (conditions.length > 0) {
-      const whereClause = conditions.length === 1
-        ? conditions[0]
-        : conditions.reduce((acc, condition) => sql`${acc} AND ${condition}`);
-      query = db.select({ count: sql<number>`count(*)` }).from(email).where(whereClause);
-    } else {
-      query = db.select({ count: sql<number>`count(*)` }).from(email);
-    }
+    const query = whereClause
+      ? db.select({ count: sql<number>`count(*)` }).from(email).where(whereClause)
+      : db.select({ count: sql<number>`count(*)` }).from(email);
 
     const result = await query;
     return result[0]?.count || 0;
