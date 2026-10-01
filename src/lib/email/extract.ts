@@ -19,26 +19,16 @@ function buildJsonSchema() {
           },
           result: { type: 'string' },
           result_text: { type: 'string' },
-          category: { type: 'string' },
         },
-        required: ['type', 'result', 'result_text', 'category'],
+        required: ['type', 'result', 'result_text'],
       },
     },
   } as const;
 }
 
-/** 校验并归一化 AI 返回的分类：不在列表中则回退 */
-function normalizeCategory(raw: string, categories: string[]): string {
-  const name = (raw || '').trim();
-  if (name && categories.includes(name)) return name;
-  if (categories.includes('其他')) return '其他';
-  return categories[0] || '';
-}
-
 async function extractWithOpenAI(
   content: string,
   env: CloudflareEnv,
-  categories: string[],
 ): Promise<ExtractResult> {
   const client = new OpenAI({
     apiKey: env.OPENAI_API_KEY,
@@ -48,7 +38,7 @@ async function extractWithOpenAI(
   const response = await client.chat.completions.create({
     model: env.EXTRACT_MODEL,
     messages: [
-      { role: 'system', content: buildExtractPrompt(categories) },
+      { role: 'system', content: buildExtractPrompt() },
       { role: 'user', content },
     ],
     response_format: buildJsonSchema(),
@@ -59,19 +49,16 @@ async function extractWithOpenAI(
     throw new Error('OpenAI returned empty response');
   }
 
-  const parsed = JSON.parse(jsonText) as ExtractResult;
-  parsed.category = normalizeCategory(parsed.category, categories);
-  return parsed;
+  return JSON.parse(jsonText) as ExtractResult;
 }
 
 async function extractWithCloudflareAI(
   content: string,
   env: CloudflareEnv,
-  categories: string[],
 ): Promise<ExtractResult> {
   const result = await env.AI.run(env.EXTRACT_MODEL as keyof AiModels, {
     messages: [
-      { role: 'system', content: buildExtractPrompt(categories) },
+      { role: 'system', content: buildExtractPrompt() },
       { role: 'user', content },
     ],
     response_format: buildJsonSchema(),
@@ -89,32 +76,30 @@ async function extractWithCloudflareAI(
   } else {
     throw new Error('Unexpected response format from Cloudflare AI');
   }
-  parsed.category = normalizeCategory(parsed.category, categories);
   return parsed;
 }
 
 export default async function extract(
   content: string,
   env: CloudflareEnv,
-  categories: string[] = [],
 ): Promise<ExtractResult> {
   try {
-    let result: ExtractResult = { ...DEFAULT_EXTRACT_RESULT, category: normalizeCategory('', categories) };
+    let result: ExtractResult = { ...DEFAULT_EXTRACT_RESULT };
     // EXTRACT_PROVIDER: 'openai' 走 OpenAI 兼容接口，'workers-ai' 走 Cloudflare Workers AI；
     // 为空时自动判断（配了 OPENAI_BASE_URL/OPENAI_API_KEY 则走 openai）
     const provider = (env.EXTRACT_PROVIDER || '').trim().toLowerCase();
     if (provider === 'workers-ai') {
-      result = await extractWithCloudflareAI(content, env, categories);
+      result = await extractWithCloudflareAI(content, env);
     } else if (provider === 'openai') {
-      result = await extractWithOpenAI(content, env, categories);
+      result = await extractWithOpenAI(content, env);
     } else if (env.OPENAI_BASE_URL && env.OPENAI_API_KEY) {
-      result = await extractWithOpenAI(content, env, categories);
+      result = await extractWithOpenAI(content, env);
     } else {
-      result = await extractWithCloudflareAI(content, env, categories);
+      result = await extractWithCloudflareAI(content, env);
     }
     return result;
   } catch (e) {
     console.error('Extraction error:', e);
-    return { ...DEFAULT_EXTRACT_RESULT, category: normalizeCategory('', categories) };
+    return { ...DEFAULT_EXTRACT_RESULT };
   }
 }

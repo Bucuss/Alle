@@ -1,5 +1,4 @@
 import emailDB from "@/lib/db/email";
-import categoriesDB from "@/lib/db/categories";
 import extract from "./extract";
 import { findMatchingRule, hasAnyRule, parseForwardTargets } from "./rules";
 import sendWebhook from '@/lib/webhook/webhook'
@@ -80,25 +79,24 @@ async function buildBaseEmailData(
     };
 }
 
-/** AI 提取（含自动归类）并存入 D1 */
+/** AI 提取（收信时同步）并存入 D1；分类由定时任务异步批量回填，入库时 category 为 NULL */
 async function persistEmail(
     base: Omit<NewEmail, 'emailType' | 'emailResult' | 'emailResultText' | 'category'>,
     allContent: string,
     env: CloudflareEnv,
 ): Promise<Email> {
-    const categories = await categoriesDB.listEnabledNames(env).catch(() => [] as string[]);
     const result = env.ENABLE_AI_EXTRACT?.trim().toLowerCase() === 'true'
-        ? await extract(allContent, env, categories)
-        : { ...DEFAULT_EXTRACT_RESULT, category: categories.includes('其他') ? '其他' : (categories[0] || '') };
+        ? await extract(allContent, env)
+        : { ...DEFAULT_EXTRACT_RESULT };
 
-    console.log(result.type, result.result, result.result_text, result.category);
+    console.log(result.type, result.result, result.result_text);
 
     const emailData: NewEmail = {
         ...base,
         emailType: result.type,
         emailResult: result.result || "",
         emailResultText: result.result_text || "",
-        category: result.category || null,
+        category: null,
     };
 
     return emailDB.create(env, emailData);

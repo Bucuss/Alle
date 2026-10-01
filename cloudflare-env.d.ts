@@ -23,6 +23,12 @@ declare namespace Cloudflare {
 		ENABLE_AI_EXTRACT: string;
 		EXTRACT_MODEL: string;
 		EXTRACT_PROVIDER: string;
+		CLASSIFY_PROVIDER: string;
+		CLASSIFY_MODEL: string;
+		CLASSIFY_CRON: string;
+		CLASSIFY_BATCH_SIZE: string;
+		ENABLE_CLASSIFY: string;
+		CLASSIFY_MIN_CONFIDENCE: string;
 		OPENAI_API_KEY: string;
 		OPENAI_BASE_URL: string;
 		DB: D1Database;

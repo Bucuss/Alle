@@ -135,6 +135,25 @@ const emailDB = {
       .where(sql`${email.id} = ${id}`);
   },
 
+  /** 分类队列：取出一批尚未分类的邮件（category IS NULL），按 id 升序 */
+  async listUnclassified(env: CloudflareEnv, limit: number): Promise<Pick<Email, 'id' | 'title' | 'bodyText'>[]> {
+    const db = getDbFromEnv(env);
+    return db
+      .select({ id: email.id, title: email.title, bodyText: email.bodyText })
+      .from(email)
+      .where(sql`${email.category} IS NULL`)
+      .orderBy(email.id)
+      .limit(limit);
+  },
+
+  /** 分类结果回写 */
+  async updateCategory(env: CloudflareEnv, id: number, category: string): Promise<void> {
+    const db = getDbFromEnv(env);
+    await db.update(email)
+      .set({ category })
+      .where(sql`${email.id} = ${id}`);
+  },
+
   async markAsUnread(id: number): Promise<void> {
     const db = getDb();
     await db.update(email)

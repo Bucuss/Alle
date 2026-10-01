@@ -1,12 +1,7 @@
 import emailDB from '@/lib/db/email';
+import { runClassifyBatch } from '@/lib/email/classify';
 
-export default async function scheduledHandler(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    controller: ScheduledController,
-    env: CloudflareEnv,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    ctx: ExecutionContext
-): Promise<void> {
+async function runAutoDelete(env: CloudflareEnv): Promise<void> {
 
     if (env.ENABLE_AUTO_DEL === 'false') {
         console.log('Auto delete is disabled');
@@ -37,4 +32,20 @@ export default async function scheduledHandler(
         console.error('Error in scheduled handler:', error);
         throw error;
     }
+}
+
+export default async function scheduledHandler(
+    controller: ScheduledController,
+    env: CloudflareEnv,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    ctx: ExecutionContext
+): Promise<void> {
+    // 分类队列消费：命中分类 cron 时走异步批量分类分支
+    const classifyCron = (env.CLASSIFY_CRON || '').trim();
+    if (classifyCron && controller.cron === classifyCron) {
+        await runClassifyBatch(env);
+        return;
+    }
+
+    await runAutoDelete(env);
 }

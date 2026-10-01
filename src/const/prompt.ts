@@ -73,10 +73,26 @@ const DEFAULT_CATEGORY_HINTS: Record<string, string> = {
 };
 
 /**
- * 构建带分类能力的提取 prompt。
+ * 构建提取 prompt（收信时同步调用）：只做验证码/链接提取，不做分类。
+ */
+export function buildExtractPrompt(): string {
+  return `${BASE_PROMPT}
+# Output Format (JSON only)
+{
+  "type": "auth_code|auth_link|service_link|subscription_link|other_link|none",
+  "result": "the extracted code/link OR empty string",
+  "result_text": "the display text from markdown-format links."
+}
+
+IMPORTANT: Return ONLY the JSON, no explanations or additional text.
+`;
+}
+
+/**
+ * 构建分类 prompt（定时任务异步批量调用）：只做邮件归类。
  * @param categories 当前启用的分类名列表（来自 D1，可在网页端自定义）
  */
-export function buildExtractPrompt(categories: string[]): string {
+export function buildClassifyPrompt(categories: string[]): string {
   const list = categories.length > 0 ? categories : Object.keys(DEFAULT_CATEGORY_HINTS);
   const categoryLines = list
     .map((name) => {
@@ -85,18 +101,12 @@ export function buildExtractPrompt(categories: string[]): string {
     })
     .join('\n');
 
-  return `${BASE_PROMPT}
-# Step 3: CATEGORIZE the Email
-Classify this email into EXACTLY ONE of the following categories.
-Return the category name EXACTLY as written (including quotes content, without quotes):
+  return `You are an expert email classifier. Read the email below and classify it into EXACTLY ONE of the following categories. Return the category name EXACTLY as written (without quotes).
 
 ${categoryLines}
 
 # Output Format (JSON only)
 {
-  "type": "auth_code|auth_link|service_link|subscription_link|other_link|none",
-  "result": "the extracted code/link OR empty string",
-  "result_text": "the display text from markdown-format links.",
   "category": "one of the category names listed above"
 }
 
@@ -105,6 +115,6 @@ IMPORTANT: Return ONLY the JSON, no explanations or additional text.
 }
 
 // 兼容旧引用：默认 prompt（含默认分类）
-const PROMPT = buildExtractPrompt([]);
+const PROMPT = buildExtractPrompt();
 
 export default PROMPT;
