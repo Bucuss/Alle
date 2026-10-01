@@ -146,15 +146,18 @@ export default async function storeEmail(
         const rawContent = await readRawMessage(message);
         const { data: base, allContent } = await buildBaseEmailData(message, rawContent);
         const recipient = base.toAddress || '';
+        // 规则匹配必须用 envelope 收件人（message.to，即实际的 gear4ai.com 地址）；
+        // Delivered-To 头在上游转发场景下可能是原始邮箱，不可用于匹配
+        const envelopeTo = (message.to || '').toLowerCase();
 
         // ---------- 规则引擎（配置了任何规则时启用） ----------
         if (await hasAnyRule(env)) {
-            const rule = await findMatchingRule(env, recipient);
+            const rule = await findMatchingRule(env, envelopeTo);
 
             // 拒收：白名单/黑名单的拦截动作
             if (rule && rule.action === 'reject') {
                 message.setReject(`Rejected by rule "${rule.name}"`);
-                console.log(`Email to ${recipient} rejected by rule: ${rule.name}`);
+                console.log(`Email to ${envelopeTo} rejected by rule: ${rule.name}`);
                 return;
             }
 
@@ -163,7 +166,7 @@ export default async function storeEmail(
                 for (const addr of parseForwardTargets(rule.forwardTo)) {
                     try {
                         await message.forward(addr);
-                        console.log(`Email to ${recipient} forwarded to ${addr} by rule: ${rule.name}`);
+                        console.log(`Email to ${envelopeTo} forwarded to ${addr} by rule: ${rule.name}`);
                     } catch (e) {
                         console.error(`Forward to ${addr} failed (rule: ${rule.name}):`, e);
                     }
