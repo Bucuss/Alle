@@ -74,6 +74,7 @@ async function buildBaseEmailData(
             receivedAt: new Date().toISOString(),
             emailError: null,
             readStatus: 0,
+            direction: 'inbound',
         },
         allContent,
     };

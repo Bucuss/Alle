@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Settings as SettingsIcon, CheckSquare, Square, Trash2, Search, X } from "lucide-react";
+import { RefreshCw, Settings as SettingsIcon, CheckSquare, Square, Trash2, Search, X, PenLine, FileText, Inbox, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,10 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DeleteDialog from "@/components/common/DeleteDialog";
+import ComposeDialog from "@/components/email/ComposeDialog";
+import DraftsDialog from "@/components/email/DraftsDialog";
 import useTranslation from "@/lib/hooks/useTranslation";
 import useEmailStore from "@/lib/store/email";
 import { useCategories } from "@/lib/hooks/useRulesApi";
 import { useState, useEffect } from "react";
+
+import type { ComposeInitial } from "@/components/email/ComposeDialog";
 
 interface EmailListHeaderProps {
   selectedEmails: Set<number>;
@@ -47,6 +51,16 @@ export default function EmailListHeader({
   const { data: categories } = useCategories();
 
   const [searchInput, setSearchInput] = useState(filters.search);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeInitial, setComposeInitial] = useState<ComposeInitial | undefined>(undefined);
+  const [composeTitle, setComposeTitle] = useState("写邮件");
+  const [draftsOpen, setDraftsOpen] = useState(false);
+
+  const openCompose = (initial?: ComposeInitial, title = "写邮件") => {
+    setComposeInitial(initial);
+    setComposeTitle(title);
+    setComposeOpen(true);
+  };
 
   // 搜索输入防抖
   useEffect(() => {
@@ -170,6 +184,12 @@ export default function EmailListHeader({
               transition={{ duration: 0.25, ease: [0.33, 1, 0.68, 1] }}
               className="flex items-center gap-2"
             >
+              <Button variant="ghost" size="icon" title="草稿箱" onClick={() => setDraftsOpen(true)}>
+                <FileText className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" title="写邮件" onClick={() => openCompose()}>
+                <PenLine className="h-4 w-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={onOpenSettings}>
                 <motion.div
                   layout
@@ -230,8 +250,24 @@ export default function EmailListHeader({
               <SelectItem value={UNCATEGORIZED_VALUE}>{t("uncategorized")}</SelectItem>
             </SelectContent>
           </Select>
+          <div className="flex rounded-xl border border-input overflow-hidden">
+            <button
+              onClick={() => updateFilters({ direction: "inbound" })}
+              className={`px-3 py-2 text-xs flex items-center gap-1 ${filters.direction === "inbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Inbox className="h-3.5 w-3.5" />收件箱
+            </button>
+            <button
+              onClick={() => updateFilters({ direction: "outbound" })}
+              className={`px-3 py-2 text-xs flex items-center gap-1 ${filters.direction === "outbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Send className="h-3.5 w-3.5" />已发送
+            </button>
+          </div>
         </div>
       )}
+      <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} initial={composeInitial} title={composeTitle} />
+      <DraftsDialog open={draftsOpen} onClose={() => setDraftsOpen(false)} onEdit={(initial, title) => { setDraftsOpen(false); openCompose(initial, title); }} />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import useTranslation from "@/lib/hooks/useTranslation";
 import DeleteDialog from "@/components/common/DeleteDialog";
 import ForwardRulesSection from "@/components/settings/ForwardRulesSection";
 import CategoriesSection from "@/components/settings/CategoriesSection";
+import ApiKeysSection from "@/components/settings/ApiKeysSection";
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -192,6 +193,9 @@ export default function Settings() {
 
             {/* 邮件分类 Section */}
             <CategoriesSection />
+
+            {/* API Keys Section */}
+            <ApiKeysSection />
 
             {/* Account Section */}
             <div className="space-y-4">

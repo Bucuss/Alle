@@ -54,4 +54,5 @@ export interface ListParams {
   recipient?: string;
   search?: string;
   category?: string;
+  direction?: string;
 }

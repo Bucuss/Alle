@@ -12,7 +12,7 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     return failure(res, 'Method not allowed', 405);
   }
 
-  const { limit, offset, read_status, email_type, recipient, q, category } = req.query;
+  const { limit, offset, read_status, email_type, recipient, q, category, direction } = req.query;
 
   if (limit !== undefined) {
     const limitNum = Number(limit);
@@ -83,6 +83,15 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     categoryValue = normalizedCategories;
   }
 
+  let directionValue: string | undefined;
+  if (direction !== undefined) {
+    const d = Array.isArray(direction) ? direction[0] : direction;
+    if (d !== 'inbound' && d !== 'outbound') {
+      return failure(res, 'direction must be inbound or outbound', 400);
+    }
+    directionValue = d;
+  }
+
   const params: ListParams = {
     limit: limit ? Number(limit) : 100,
     offset: offset ? Number(offset) : 0,
@@ -91,6 +100,7 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     recipient: recipientValue,
     search: searchValue,
     category: categoryValue,
+    direction: directionValue,
   };
 
   try {

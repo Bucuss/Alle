@@ -20,6 +20,7 @@ export interface Email {
   emailError: string | null;
   readStatus: number;
   category: string | null;
+  direction: string | null;
 }
 
 export type NewEmail = Omit<Email, 'id'>;

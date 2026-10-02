@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { Email, ExtractResultType } from '@/types';
 
 export type ReadStatusFilter = 'all' | 'read' | 'unread';
+export type DirectionFilter = 'inbound' | 'outbound';
 
 export interface EmailFilters {
   readStatus: ReadStatusFilter;
@@ -10,6 +11,7 @@ export interface EmailFilters {
   recipients: string[];
   search: string;
   categories: string[];
+  direction: DirectionFilter;
 }
 
 const createDefaultFilters = (): EmailFilters => ({
@@ -18,6 +20,7 @@ const createDefaultFilters = (): EmailFilters => ({
   recipients: [],
   search: '',
   categories: [],
+  direction: 'inbound',
 });
 
 const dedupeEmails = (emails: Email[]): Email[] => {

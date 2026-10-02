@@ -22,6 +22,7 @@ const email = sqliteTable('email', {
   emailError: text('email_error'),
   readStatus: integer('read_status').default(0),
   category: text('category'),
+  direction: text('direction').default('inbound'),
 });
 
 const UNCATEGORIZED = '__none__';
@@ -31,8 +32,12 @@ function escapeLike(value: string): string {
 }
 
 function buildConditions(params: ListParams) {
-  const { readStatus, emailType, recipient, search, category } = params;
+  const { readStatus, emailType, recipient, search, category, direction } = params;
   const conditions = [];
+
+  if (direction === 'inbound' || direction === 'outbound') {
+    conditions.push(sql`${email.direction} = ${direction}`);
+  }
 
   if (readStatus === 1) {
     conditions.push(sql`${email.readStatus} = 1`);
@@ -110,6 +115,12 @@ const emailDB = {
     const result = await query;
     return result[0]?.count || 0;
   },
+  async getById(id: number): Promise<Email | undefined> {
+    const db = getDb();
+    const row = await db.select().from(email).where(sql`${email.id} = ${id}`).get();
+    return row as Email | undefined;
+  },
+
   async delete(items: number[] = []): Promise<void> {
     const db = getDb();
     await db.delete(email).where(inArray(email.id, items));

@@ -10,6 +10,7 @@ interface FetchEmailsParams {
     recipients?: string[];
     search?: string;
     categories?: string[];
+    direction?: string;
 }
 
 export async function fetchEmails({
@@ -18,6 +19,7 @@ export async function fetchEmails({
     readStatus,
     emailTypes = [],
     recipients = [],
+    direction = 'inbound',
     search = '',
     categories = [],
 }: FetchEmailsParams = {}) {
@@ -36,6 +38,10 @@ export async function fetchEmails({
 
     if (recipients.length > 0) {
         searchParams.set('recipient', recipients.join(','));
+    }
+
+    if (direction) {
+        searchParams.set('direction', direction);
     }
 
     if (search.trim().length > 0) {

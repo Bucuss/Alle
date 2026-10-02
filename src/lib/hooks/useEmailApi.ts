@@ -36,7 +36,7 @@ export const useEmailListInfinite = () => {
   const readStatusParam = filters.readStatus === 'read' ? 1 : filters.readStatus === 'unread' ? 0 : undefined;
 
   return useInfiniteQuery({
-    queryKey: ['emails', { readStatus: filters.readStatus, emailTypes: normalizedEmailTypes, recipients: normalizedRecipients, search: searchParam, categories: normalizedCategories }],
+    queryKey: ['emails', { readStatus: filters.readStatus, emailTypes: normalizedEmailTypes, recipients: normalizedRecipients, search: searchParam, categories: normalizedCategories, direction: filters.direction }],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await emailApi.fetchEmails({
         limit: 50,
@@ -46,6 +46,7 @@ export const useEmailListInfinite = () => {
         recipients: normalizedRecipients,
         search: searchParam,
         categories: normalizedCategories,
+        direction: filters.direction,
       });
 
       return {

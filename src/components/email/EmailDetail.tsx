@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Mail } from "lucide-react";
+import { Mail, Reply, Forward } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { useSettingsStore } from "@/lib/store/settings";
 import EmailContent from "@/components/email/EmailContent";
 import EmailAvatar from "@/components/email/EmailAvatar";
 import EmailEditResult from "@/components/email/EmailEditResult";
+import ComposeDialog from "@/components/email/ComposeDialog";
 import { useMarkEmail } from "@/lib/hooks/useEmailApi";
 import type { Email } from "@/types";
+import type { ComposeInitial } from "@/components/email/ComposeDialog";
 
 export default function EmailDetail({ email }: { email: Email | null }) {
   const { editMode } = useSettingsStore();
   const { mutate: markEmail } = useMarkEmail();
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeInitial, setComposeInitial] = useState<ComposeInitial | undefined>(undefined);
+  const [composeTitle, setComposeTitle] = useState("写邮件");
 
   useEffect(() => {
     if (!email || email.readStatus === 1) {
@@ -62,7 +68,30 @@ export default function EmailDetail({ email }: { email: Email | null }) {
     );
   }
 
-  // 格式化完整时间
+  const openReply = () => {
+    if (!email) return;
+    const subj = email.title || "";
+    setComposeInitial({
+      to: email.direction === "outbound" ? email.toAddress || "" : email.fromAddress || "",
+      subject: /^re:/i.test(subj) ? subj : `Re: ${subj}`,
+      bodyText: `\n\nOn ${email.sentAt || ""}, ${email.fromAddress || ""} wrote:\n` + (email.bodyText || "").split("\n").map((l) => `> ${l}`).join("\n"),
+      inReplyTo: email.messageId || undefined,
+    });
+    setComposeTitle("回复邮件");
+    setComposeOpen(true);
+  };
+
+  const openForward = () => {
+    if (!email) return;
+    const subj = email.title || "";
+    setComposeInitial({
+      subject: /^fw:/i.test(subj) ? subj : `Fw: ${subj}`,
+      bodyText: `---------- Forwarded message ----------\nFrom: ${email.fromAddress || ""}\nDate: ${email.sentAt || ""}\nSubject: ${subj}\n\n${email.bodyText || ""}`,
+    });
+    setComposeTitle("转发邮件");
+    setComposeOpen(true);
+  };
+
   const formatFullTime = (sentAt: string | null): string => {
     if (!sentAt) return '';
     const date = new Date(sentAt);
@@ -131,11 +160,19 @@ export default function EmailDetail({ email }: { email: Email | null }) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.3 }}
-          className="px-6 pb-2"
+          className="px-6 pb-2 flex items-center justify-between gap-2"
         >
-          <h3 className="text-base font-semibold text-foreground leading-relaxed">
+          <h3 className="text-base font-semibold text-foreground leading-relaxed flex-1 min-w-0">
             {email.title}
           </h3>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button variant="ghost" size="icon" title="回复" onClick={openReply}>
+              <Reply className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" title="转发" onClick={openForward}>
+              <Forward className="h-4 w-4" />
+            </Button>
+          </div>
         </motion.div>
 
 
@@ -167,6 +204,7 @@ export default function EmailDetail({ email }: { email: Email | null }) {
           />
         </motion.div>
       </ScrollArea>
+      <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} initial={composeInitial} title={composeTitle} />
     </motion.div >
   );
 }
