@@ -28,6 +28,8 @@ interface JevChoiceAnswer {
 }
 
 interface JevResponse {
+  // REST API 形态：{ answers: {...} }；Workers AI binding 会再包一层 { state, result: {...} }
+  result?: { answers?: Record<string, JevChoiceAnswer> };
   answers?: Record<string, JevChoiceAnswer>;
 }
 
@@ -57,7 +59,7 @@ async function classifyWithJev(
     },
   } as never)) as JevResponse;
 
-  const answer = res?.answers?.category;
+  const answer = res?.result?.answers?.category ?? res?.answers?.category;
   const choice = (answer?.choice || '').trim();
   const confidence = typeof answer?.confidence === 'number' ? answer.confidence : 1;
 
