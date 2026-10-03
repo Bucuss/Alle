@@ -5,6 +5,9 @@ import { DEFAULT_EXTRACT_RESULT } from '@/types';
 
 import type { ExtractResult } from '@/types';
 
+// 提取输入的最大字符数，超出截断（见 extract 注释）
+const EXTRACT_MAX_CHARS = 8000;
+
 function buildJsonSchema() {
   return {
     type: 'json_schema',
@@ -84,22 +87,27 @@ export default async function extract(
   env: CloudflareEnv,
 ): Promise<ExtractResult> {
   try {
+    // 输入截断：超长邮件（如携带原信附件的退信通知）会撑爆模型请求；
+    // 验证码/链接通常位于邮件开头，截断不影响提取效果，还能省 token
+    const input = content.length > EXTRACT_MAX_CHARS ? content.slice(0, EXTRACT_MAX_CHARS) : content;
     let result: ExtractResult = { ...DEFAULT_EXTRACT_RESULT };
     // EXTRACT_PROVIDER: 'openai' 走 OpenAI 兼容接口，'workers-ai' 走 Cloudflare Workers AI；
     // 为空时自动判断（配了 OPENAI_BASE_URL/OPENAI_API_KEY 则走 openai）
     const provider = (env.EXTRACT_PROVIDER || '').trim().toLowerCase();
     if (provider === 'workers-ai') {
-      result = await extractWithCloudflareAI(content, env);
+      result = await extractWithCloudflareAI(input, env);
     } else if (provider === 'openai') {
-      result = await extractWithOpenAI(content, env);
+      result = await extractWithOpenAI(input, env);
     } else if (env.OPENAI_BASE_URL && env.OPENAI_API_KEY) {
-      result = await extractWithOpenAI(content, env);
+      result = await extractWithOpenAI(input, env);
     } else {
-      result = await extractWithCloudflareAI(content, env);
+      result = await extractWithCloudflareAI(input, env);
     }
     return result;
   } catch (e) {
-    console.error('Extraction error:', e);
+    // 打印真实的状态码与报错信息，方便排查 provider 侧问题
+    const err = e as { status?: number; message?: unknown };
+    console.error('Extraction error:', err?.status ?? 'no-status', err?.message ?? e);
     return { ...DEFAULT_EXTRACT_RESULT };
   }
 }
