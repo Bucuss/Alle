@@ -6,6 +6,46 @@ import { SignJWT } from 'jose';
 import type { LoginRequestBody, LoginResponseData } from '@/types';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
+// 登录限流：滑动窗口，每 IP 每 60 秒最多 5 次尝试
+const RATE_LIMIT_WINDOW_S = 60;
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+function getClientIp(req: NextApiRequest): string {
+  const cf = req.headers['cf-connecting-ip'];
+  if (typeof cf === 'string' && cf) return cf;
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff) return xff.split(',')[0].trim();
+  if (Array.isArray(xff) && xff.length) return xff[0].split(',')[0].trim();
+  return 'unknown';
+}
+
+async function checkLoginRateLimit(
+  db: D1Database,
+  ip: string
+): Promise<{ allowed: boolean; retryAfter: number }> {
+  const now = Math.floor(Date.now() / 1000);
+  const windowStart = now - RATE_LIMIT_WINDOW_S;
+  // 顺手清理 1 小时前的旧记录，避免表无限增长
+  await db.prepare('DELETE FROM login_attempts WHERE attempted_at < ?').bind(now - 3600).run();
+  const countRow = await db
+    .prepare('SELECT COUNT(*) AS n FROM login_attempts WHERE ip = ? AND attempted_at >= ?')
+    .bind(ip, windowStart)
+    .first<{ n: number }>();
+  if ((countRow?.n ?? 0) >= RATE_LIMIT_MAX_ATTEMPTS) {
+    const oldestRow = await db
+      .prepare('SELECT MIN(attempted_at) AS t FROM login_attempts WHERE ip = ? AND attempted_at >= ?')
+      .bind(ip, windowStart)
+      .first<{ t: number | null }>();
+    const retryAfter = Math.max(1, (oldestRow?.t ?? now) + RATE_LIMIT_WINDOW_S - now);
+    return { allowed: false, retryAfter };
+  }
+  await db
+    .prepare('INSERT INTO login_attempts (ip, attempted_at) VALUES (?, ?)')
+    .bind(ip, now)
+    .run();
+  return { allowed: true, retryAfter: 0 };
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -24,6 +64,20 @@ export default async function handler(
 
     if (!USERNAME || !PASSWORD) {
       return failure(res, 'Server not configured', 500);
+    }
+
+    // 登录限流：D1 表缺失或异常时 fail-open，保证登录可用
+    try {
+      const { allowed, retryAfter } = await checkLoginRateLimit(
+        (env as CloudflareEnv).DB,
+        getClientIp(req)
+      );
+      if (!allowed) {
+        res.setHeader('Retry-After', String(retryAfter));
+        return failure(res, 'Too many login attempts, please try again later', 429);
+      }
+    } catch (e) {
+      console.error('Login rate limit check failed (fail-open):', e);
     }
 
     const body = req.body as LoginRequestBody;
