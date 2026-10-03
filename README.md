@@ -77,6 +77,76 @@ AI 识别功能让邮件阅读更直观，用户可直接从提取结果中完�
 
 ---
 
+### 📤 邮件发送
+
+Alle 支持直接在网页端撰写并发送邮件（基于 Cloudflare Email Service，无需第三方发信服务）：  
+
+- ✍️ **写邮件**：新建邮件并发送  
+- ↩️ **回复 / 转发**：在邮件详情中一键回复或转发  
+- 📝 **草稿箱**：自动保存、随时继续编辑、一键发送  
+- 📥📤 **收件箱 / 已发送**：一键切换视图  
+- 🔑 **API Keys 管理**：`Settings → API Keys` 可创建 / 吊销用于 MCP 调用的 API Key（明文只在创建时显示一次）  
+
+> 发送域名需先在 Cloudflare Email Service 中完成验证；发件地址需在 Worker 的 `allowed_sender_addresses` 中配置。  
+
+---
+
+### 🔌 MCP 接口
+
+Alle 提供 **MCP（Model Context Protocol）** 接口，可被 AI 助手调用，实现邮件的读取、管理、起草与发送。  
+
+**接入信息**  
+- 地址：`https://<你的域名>/api/mcp`  
+- 协议：JSON-RPC 2.0 的 Streamable HTTP（无状态），支持 `initialize`、`tools/list`、`tools/call`  
+- 认证：`Authorization: Bearer <api_key>`（在网页端 `Settings → API Keys` 创建）  
+
+**可用工具（14 个）**  
+
+| 工具 | 说明 |
+| ---- | ---- |
+| `list_emails` | 按条件列出邮件（支持 direction / category / read / limit 等过滤） |
+| `get_email` | 读取单封邮件全文 |
+| `set_read_status` | 标记已读 / 未读 |
+| `set_category` | 修改邮件分类 |
+| `delete_email` | 删除邮件 |
+| `send_email` | 发送邮件（支持 `dry_run` 先预览不发送） |
+| `reply_email` | 回复邮件 |
+| `forward_email` | 转发邮件 |
+| `list_drafts` / `get_draft` | 列出 / 读取草稿 |
+| `create_draft` / `update_draft` / `delete_draft` | 新建 / 更新 / 删除草稿 |
+| `send_draft` | 发送草稿 |
+
+**调用示例**  
+
+```bash
+# 列出可用工具
+curl -X POST https://<你的域名>/api/mcp \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# 发邮件前先 dry_run 预览（不实际发送）
+curl -X POST https://<你的域名>/api/mcp \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
+       "params":{"name":"send_email","arguments":{
+         "to":"someone@example.com","subject":"Hi","body":"Hello",
+         "dry_run": true}}}'
+```
+
+> ⚠️ API Key 等同于登录凭证，请妥善保管；不再使用时请及时在网页端吊销。  
+
+---
+
+### 🔒 安全说明
+
+- 网页端登录采用 JWT 鉴权；登录接口带限流（每 IP 每 60 秒 5 次、全局 20 次），防止暴力破解  
+- API Key 仅存储哈希值，明文只在创建时显示一次，可随时吊销  
+- 邮件正文在无脚本权限的沙箱 iframe 中渲染，阻断邮件内恶意脚本  
+
+---
+
 ## 🛠️ 技术亮点
 
 - 🌩️ **基于 Cloudflare Workers 构建**：  
