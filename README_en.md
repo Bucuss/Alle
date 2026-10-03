@@ -62,6 +62,11 @@ Alle's built-in AI engine analyzes email content and automatically identifies an
 
 The AI recognition feature makes email reading more intuitive, allowing users to complete operations directly from the extracted results, greatly improving the user experience.
 
+**How it works:**
+- ⚡ **Synchronous extraction on receipt**: key information such as verification codes and verification links is extracted the moment an email arrives, ready for immediate use
+- 🔄 **Asynchronous scheduled classification**: a background cron job classifies emails in batches (verification codes / newsletters & marketing / billing & finance / notifications / others), falling back to "Others" when confidence is low
+- ⚙️ **Configurable**: the models used for extraction and classification, the cron schedule, batch size, and confidence threshold are all set via environment variables (`EXTRACT_*`, `CLASSIFY_*`) — no code changes needed
+
 ---
 
 ### 📨 Temporary Email Service
@@ -74,6 +79,76 @@ These temporary email addresses can be used for:
 - ⚡ Temporarily receiving one-time information or test emails
 
 All emails received by temporary email addresses are automatically integrated into the main interface for unified management, avoiding missed messages.
+
+---
+
+### 📤 Email Sending
+
+Alle supports composing and sending emails directly in the web UI (powered by Cloudflare Email Service, no third-party sending service required):
+
+- ✍️ **Compose**: Create and send new emails
+- ↩️ **Reply / Forward**: Reply or forward right from the email detail view
+- 📝 **Drafts**: Auto-save, resume editing anytime, send with one click
+- 📥📤 **Inbox / Sent**: Switch views with one click
+- 🔑 **API Keys**: `Settings → API Keys` to create / revoke API keys for MCP access (the plaintext key is shown only once at creation)
+
+> The sending domain must be verified in Cloudflare Email Service first; sender addresses must be listed in the Worker's `allowed_sender_addresses`.
+
+---
+
+### 🔌 MCP Interface
+
+Alle provides an **MCP (Model Context Protocol)** interface that AI assistants can call to read, manage, draft, and send emails.
+
+**Connection info**
+- Endpoint: `https://<your-domain>/api/mcp`
+- Protocol: JSON-RPC 2.0 over Streamable HTTP (stateless); supports `initialize`, `tools/list`, `tools/call`
+- Auth: `Authorization: Bearer <api_key>` (create one in the web UI under `Settings → API Keys`)
+
+**Available tools (14)**
+
+| Tool | Description |
+| ---- | ----------- |
+| `list_emails` | List emails with filters (direction / category / read / limit, etc.) |
+| `get_email` | Read a single email in full |
+| `set_read_status` | Mark as read / unread |
+| `set_category` | Change an email's category |
+| `delete_email` | Delete an email |
+| `send_email` | Send an email (`dry_run` supported for preview) |
+| `reply_email` | Reply to an email |
+| `forward_email` | Forward an email |
+| `list_drafts` / `get_draft` | List / read drafts |
+| `create_draft` / `update_draft` / `delete_draft` | Create / update / delete drafts |
+| `send_draft` | Send a draft |
+
+**Examples**
+
+```bash
+# List available tools
+curl -X POST https://<your-domain>/api/mcp \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# Preview before sending with dry_run (nothing is actually sent)
+curl -X POST https://<your-domain>/api/mcp \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
+       "params":{"name":"send_email","arguments":{
+         "to":"someone@example.com","subject":"Hi","body":"Hello",
+         "dry_run": true}}}'
+```
+
+> ⚠️ An API key is equivalent to your login credentials — keep it safe, and revoke it in the web UI when no longer needed.
+
+---
+
+### 🔒 Security Notes
+
+- Web login uses JWT authentication; the login endpoint is rate-limited (5 attempts per 60s per IP, 20 per 60s globally) against brute-force attacks
+- API keys are stored as hashes only; the plaintext is shown once at creation and keys can be revoked anytime
+- Email bodies render inside a script-less sandboxed iframe, blocking malicious scripts in emails
 
 ---
 
