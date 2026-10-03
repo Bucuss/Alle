@@ -253,15 +253,19 @@ export default function EmailListHeader({
           <div className="flex rounded-xl border border-input overflow-hidden">
             <button
               onClick={() => updateFilters({ direction: "inbound" })}
-              className={`px-3 py-2 text-xs flex items-center gap-1 ${filters.direction === "inbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              title={t("inbox")}
+              aria-label={t("inbox")}
+              className={`p-2 flex items-center justify-center ${filters.direction === "inbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <Inbox className="h-3.5 w-3.5" />收件箱
+              <Inbox className="h-4 w-4" />
             </button>
             <button
               onClick={() => updateFilters({ direction: "outbound" })}
-              className={`px-3 py-2 text-xs flex items-center gap-1 ${filters.direction === "outbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              title={t("sent")}
+              aria-label={t("sent")}
+              className={`p-2 flex items-center justify-center ${filters.direction === "outbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <Send className="h-3.5 w-3.5" />已发送
+              <Send className="h-4 w-4" />
             </button>
           </div>
         </div>
