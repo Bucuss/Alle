@@ -2,21 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Reply, Forward } from "lucide-react";
+import { Mail, Reply, Forward, CheckCheck } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import useTranslation from "@/lib/hooks/useTranslation";
 import { useSettingsStore } from "@/lib/store/settings";
 import EmailContent from "@/components/email/EmailContent";
 import EmailAvatar from "@/components/email/EmailAvatar";
 import EmailEditResult from "@/components/email/EmailEditResult";
 import ComposeDialog from "@/components/email/ComposeDialog";
-import { useMarkEmail } from "@/lib/hooks/useEmailApi";
+import { useMarkEmail, useMarkImportantHandled } from "@/lib/hooks/useEmailApi";
 import type { Email } from "@/types";
 import type { ComposeInitial } from "@/components/email/ComposeDialog";
 
 export default function EmailDetail({ email }: { email: Email | null }) {
+  const { t } = useTranslation();
   const { editMode } = useSettingsStore();
   const { mutate: markEmail } = useMarkEmail();
+  const { mutate: markHandled } = useMarkImportantHandled();
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeInitial, setComposeInitial] = useState<ComposeInitial | undefined>(undefined);
   const [composeTitle, setComposeTitle] = useState("写邮件");
@@ -172,6 +175,17 @@ export default function EmailDetail({ email }: { email: Email | null }) {
             <Button variant="ghost" size="icon" title="转发" onClick={openForward}>
               <Forward className="h-4 w-4" />
             </Button>
+            {email.isImportant === 1 && email.importantHandled === 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                title={t("markHandled")}
+                aria-label={t("markHandled")}
+                onClick={() => markHandled(email.id)}
+              >
+                <CheckCheck className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </motion.div>
 

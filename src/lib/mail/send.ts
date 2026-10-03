@@ -137,6 +137,10 @@ export async function sendMail(env: CloudflareEnv, input: SendMailInput) {
     readStatus: 1,
     category: null,
     direction: 'outbound',
+    // 自己发出的邮件不做重要性判断
+    isImportant: 0,
+    importantReason: null,
+    importantHandled: 0,
   });
 
   await recordSend(env, {

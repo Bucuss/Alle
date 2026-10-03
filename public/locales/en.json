@@ -118,5 +118,7 @@
   "categoryNamePlaceholder": "E.g. Logistics",
   "categoryNameRequired": "Category name is required",
   "deleteCategory": "Delete category",
-  "deleteCategoryConfirm": "Delete category \"{{name}}\"? Existing emails keep their category label."
+  "deleteCategoryConfirm": "Delete category \"{{name}}\"? Existing emails keep their category label.",
+  "important": "Important",
+  "markHandled": "Mark as handled"
 }

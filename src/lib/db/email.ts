@@ -23,6 +23,11 @@ const email = sqliteTable('email', {
   readStatus: integer('read_status').default(0),
   category: text('category'),
   direction: text('direction').default('inbound'),
+  // jev 价值判断：isImportant=1 表示值得重点关注；importantReason 记录 jev 的选择（需尽快处理/有价值/无需关注），NULL=尚未判断
+  isImportant: integer('is_important').default(0),
+  importantReason: text('important_reason'),
+  // 用户在重要邮件入口点"已处理"后置 1，该邮件不再出现在重要入口
+  importantHandled: integer('important_handled').default(0),
 });
 
 const UNCATEGORIZED = '__none__';
@@ -32,10 +37,14 @@ function escapeLike(value: string): string {
 }
 
 function buildConditions(params: ListParams) {
-  const { readStatus, emailType, recipient, search, category, direction } = params;
+  const { readStatus, emailType, recipient, search, category, direction, important } = params;
   const conditions = [];
 
-  if (direction === 'inbound' || direction === 'outbound') {
+  if (important === 1) {
+    // 重要入口：jev 判定有价值且用户尚未点"已处理"；忽略 direction（重要邮件即收件）
+    conditions.push(sql`${email.isImportant} = 1`);
+    conditions.push(sql`${email.importantHandled} = 0`);
+  } else if (direction === 'inbound' || direction === 'outbound') {
     conditions.push(sql`${email.direction} = ${direction}`);
   }
 
@@ -147,12 +156,13 @@ const emailDB = {
   },
 
   /** 分类队列：取出一批尚未分类的邮件（category IS NULL），按 id 升序 */
-  async listUnclassified(env: CloudflareEnv, limit: number): Promise<Pick<Email, 'id' | 'title' | 'bodyText'>[]> {
+  async listUnclassified(env: CloudflareEnv, limit: number): Promise<Pick<Email, 'id' | 'title' | 'bodyText' | 'direction' | 'category' | 'importantReason'>[]> {
     const db = getDbFromEnv(env);
     return db
-      .select({ id: email.id, title: email.title, bodyText: email.bodyText })
+      .select({ id: email.id, title: email.title, bodyText: email.bodyText, direction: email.direction, category: email.category, importantReason: email.importantReason })
       .from(email)
-      .where(sql`${email.category} IS NULL`)
+      // 未分类，或（收件且）尚未做重要性判断——后者覆盖历史存量邮件的回填
+      .where(sql`${email.category} IS NULL OR (${email.importantReason} IS NULL AND ${email.direction} = 'inbound')`)
       .orderBy(email.id)
       .limit(limit);
   },
@@ -162,6 +172,22 @@ const emailDB = {
     const db = getDbFromEnv(env);
     await db.update(email)
       .set({ category })
+      .where(sql`${email.id} = ${id}`);
+  },
+
+  /** 重要性判断结果回写 */
+  async updateImportance(env: CloudflareEnv, id: number, isImportant: boolean, reason: string | null): Promise<void> {
+    const db = getDbFromEnv(env);
+    await db.update(email)
+      .set({ isImportant: isImportant ? 1 : 0, importantReason: reason })
+      .where(sql`${email.id} = ${id}`);
+  },
+
+  /** 用户在重要入口点击"已处理"：该邮件不再出现在重要入口 */
+  async markImportantHandled(id: number): Promise<void> {
+    const db = getDb();
+    await db.update(email)
+      .set({ importantHandled: 1 })
       .where(sql`${email.id} = ${id}`);
   },
 

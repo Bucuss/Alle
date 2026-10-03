@@ -36,7 +36,7 @@ export const useEmailListInfinite = () => {
   const readStatusParam = filters.readStatus === 'read' ? 1 : filters.readStatus === 'unread' ? 0 : undefined;
 
   return useInfiniteQuery({
-    queryKey: ['emails', { readStatus: filters.readStatus, emailTypes: normalizedEmailTypes, recipients: normalizedRecipients, search: searchParam, categories: normalizedCategories, direction: filters.direction }],
+    queryKey: ['emails', { readStatus: filters.readStatus, emailTypes: normalizedEmailTypes, recipients: normalizedRecipients, search: searchParam, categories: normalizedCategories, direction: filters.direction, importantOnly: filters.importantOnly }],
     queryFn: async ({ pageParam = 0 }) => {
       const result = await emailApi.fetchEmails({
         limit: 50,
@@ -47,6 +47,7 @@ export const useEmailListInfinite = () => {
         search: searchParam,
         categories: normalizedCategories,
         direction: filters.direction,
+        important: filters.importantOnly ? 1 : undefined,
       });
 
       return {
@@ -75,6 +76,23 @@ export const useDeleteEmail = () => {
     mutationFn: emailApi.deleteEmail,
     onSuccess: (emailId) => {
       removeEmail(emailId);
+      queryClient.invalidateQueries({ queryKey: ['emails'] });
+    },
+  });
+};
+
+/** 重要入口：标记邮件为"已处理"，从重要列表中移除 */
+export const useMarkImportantHandled = () => {
+  const queryClient = useQueryClient();
+  const { removeEmail, selectedEmailId, selectEmail } = useEmailStore();
+
+  return useMutation({
+    mutationFn: emailApi.markImportantHandled,
+    onSuccess: (emailId) => {
+      removeEmail(emailId);
+      if (selectedEmailId === emailId) {
+        selectEmail(null);
+      }
       queryClient.invalidateQueries({ queryKey: ['emails'] });
     },
   });

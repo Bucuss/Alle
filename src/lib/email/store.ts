@@ -75,6 +75,10 @@ async function buildBaseEmailData(
             emailError: null,
             readStatus: 0,
             direction: 'inbound',
+            // 重要性由定时任务的 jev 判断异步回填，入库时为未判断状态
+            isImportant: 0,
+            importantReason: null,
+            importantHandled: 0,
         },
         allContent,
     };

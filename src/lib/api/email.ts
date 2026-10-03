@@ -11,6 +11,7 @@ interface FetchEmailsParams {
     search?: string;
     categories?: string[];
     direction?: string;
+    important?: number;
 }
 
 export async function fetchEmails({
@@ -22,6 +23,7 @@ export async function fetchEmails({
     direction = 'inbound',
     search = '',
     categories = [],
+    important,
 }: FetchEmailsParams = {}) {
     const searchParams = new URLSearchParams({
         limit: String(limit),
@@ -50,6 +52,10 @@ export async function fetchEmails({
 
     if (categories.length > 0) {
         searchParams.set('category', categories.join(','));
+    }
+
+    if (important === 1) {
+        searchParams.set('important', '1');
     }
 
     const response = await apiFetch(`/api/email/list?${searchParams.toString()}`);
@@ -161,4 +167,27 @@ export async function mark(id: number, isRead: boolean) {
     }
 
     return { emailId: id, isRead };
+}
+
+/** 重要入口：标记邮件为"已处理"，之后不再出现在重要入口 */
+export async function markImportantHandled(id: number) {
+    const searchParams = new URLSearchParams({
+        id: String(id),
+    });
+
+    const response = await apiFetch(`/api/email/important?${searchParams.toString()}`, {
+        method: 'POST',
+    });
+
+    if (!response.ok) {
+        throw new ApiError('Failed to mark email as handled', response.status);
+    }
+
+    const data = (await response.json()) as ApiResponse<null>;
+
+    if (!data.success) {
+        throw new ApiError(data.error || 'Failed to mark email as handled', response.status);
+    }
+
+    return id;
 }

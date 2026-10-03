@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Settings as SettingsIcon, CheckSquare, Square, Trash2, Search, X, PenLine, FileText, Inbox, Send } from "lucide-react";
+import { RefreshCw, Settings as SettingsIcon, CheckSquare, Square, Trash2, Search, X, PenLine, FileText, Inbox, Send, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -99,7 +99,7 @@ export default function EmailListHeader({
         className="flex items-center justify-between px-6 py-3"
       >
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("inbox")}</h1>
+          <h1 className="text-2xl font-bold text-foreground">{filters.importantOnly ? t("important") : t("inbox")}</h1>
           <p className="text-sm text-muted-foreground">
             {hasSelection ? t("selectedCount", { count: selectionCount }) : t("emailsCount", { count: totalCount })}
           </p>
@@ -252,22 +252,30 @@ export default function EmailListHeader({
           </Select>
           <div className="flex rounded-xl border border-input overflow-hidden">
             <button
-              onClick={() => updateFilters({ direction: "inbound" })}
+              onClick={() => updateFilters({ direction: "inbound", importantOnly: false })}
               title={t("inbox")}
               aria-label={t("inbox")}
-              className={`p-2 flex items-center justify-center ${filters.direction === "inbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              className={`p-2 flex items-center justify-center ${!filters.importantOnly && filters.direction === "inbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               <Inbox className="h-4 w-4" />
             </button>
             <button
-              onClick={() => updateFilters({ direction: "outbound" })}
+              onClick={() => updateFilters({ direction: "outbound", importantOnly: false })}
               title={t("sent")}
               aria-label={t("sent")}
-              className={`p-2 flex items-center justify-center ${filters.direction === "outbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              className={`p-2 flex items-center justify-center ${!filters.importantOnly && filters.direction === "outbound" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               <Send className="h-4 w-4" />
             </button>
           </div>
+          <button
+            onClick={() => updateFilters({ importantOnly: !filters.importantOnly })}
+            title={t("important")}
+            aria-label={t("important")}
+            className={`p-2 flex items-center justify-center rounded-xl border border-input ${filters.importantOnly ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Star className="h-4 w-4" />
+          </button>
         </div>
       )}
       <ComposeDialog open={composeOpen} onClose={() => setComposeOpen(false)} initial={composeInitial} title={composeTitle} />

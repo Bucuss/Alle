@@ -55,4 +55,6 @@ export interface ListParams {
   search?: string;
   category?: string;
   direction?: string;
+  /** 重要入口：1=只返回 jev 判定有价值且未被用户标记已处理的重要邮件 */
+  important?: number;
 }

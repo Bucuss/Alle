@@ -12,6 +12,8 @@ export interface EmailFilters {
   search: string;
   categories: string[];
   direction: DirectionFilter;
+  /** 重要邮件入口：只看 jev 判定有价值且未被标记已处理的重要邮件 */
+  importantOnly: boolean;
 }
 
 const createDefaultFilters = (): EmailFilters => ({
@@ -21,6 +23,7 @@ const createDefaultFilters = (): EmailFilters => ({
   search: '',
   categories: [],
   direction: 'inbound',
+  importantOnly: false,
 });
 
 const dedupeEmails = (emails: Email[]): Email[] => {

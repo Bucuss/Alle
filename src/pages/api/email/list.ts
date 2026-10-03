@@ -12,7 +12,7 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     return failure(res, 'Method not allowed', 405);
   }
 
-  const { limit, offset, read_status, email_type, recipient, q, category, direction } = req.query;
+  const { limit, offset, read_status, email_type, recipient, q, category, direction, important } = req.query;
 
   if (limit !== undefined) {
     const limitNum = Number(limit);
@@ -92,6 +92,13 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     directionValue = d;
   }
 
+  if (important !== undefined) {
+    const importantNum = Number(Array.isArray(important) ? important[0] : important);
+    if (isNaN(importantNum) || ![0, 1].includes(importantNum)) {
+      return failure(res, 'important must be 0 or 1', 400);
+    }
+  }
+
   const params: ListParams = {
     limit: limit ? Number(limit) : 100,
     offset: offset ? Number(offset) : 0,
@@ -101,6 +108,7 @@ async function listHandler(req: NextApiRequest, res: NextApiResponse) {
     search: searchValue,
     category: categoryValue,
     direction: directionValue,
+    important: important !== undefined ? Number(important) : undefined,
   };
 
   try {

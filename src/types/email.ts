@@ -21,6 +21,11 @@ export interface Email {
   readStatus: number;
   category: string | null;
   direction: string | null;
+  // jev 价值判断：1=值得重点关注；importantReason 为 jev 的选择（NULL=尚未判断）
+  isImportant: number;
+  importantReason: string | null;
+  // 用户在重要入口点"已处理"后为 1，不再出现在重要入口
+  importantHandled: number;
 }
 
 export type NewEmail = Omit<Email, 'id'>;
