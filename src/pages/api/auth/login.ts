@@ -6,9 +6,12 @@ import { SignJWT } from 'jose';
 import type { LoginRequestBody, LoginResponseData } from '@/types';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-// 登录限流：滑动窗口，每 IP 每 60 秒最多 5 次尝试
+// 登录限流：滑动窗口
+// - 每 IP 每 60 秒最多 5 次（防单点爆破）
+// - 全局每 60 秒最多 20 次（防轮换 IP 的分布式爆破；单用户正常使用远达不到）
 const RATE_LIMIT_WINDOW_S = 60;
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const RATE_LIMIT_MAX_PER_IP = 5;
+const RATE_LIMIT_MAX_GLOBAL = 20;
 
 function getClientIp(req: NextApiRequest): string {
   const cf = req.headers['cf-connecting-ip'];
@@ -27,11 +30,20 @@ async function checkLoginRateLimit(
   const windowStart = now - RATE_LIMIT_WINDOW_S;
   // 顺手清理 1 小时前的旧记录，避免表无限增长
   await db.prepare('DELETE FROM login_attempts WHERE attempted_at < ?').bind(now - 3600).run();
+  // 全局限流：所有 IP 在窗口内的尝试总数
+  const globalRow = await db
+    .prepare('SELECT COUNT(*) AS n, MIN(attempted_at) AS t FROM login_attempts WHERE attempted_at >= ?')
+    .bind(windowStart)
+    .first<{ n: number; t: number | null }>();
+  if ((globalRow?.n ?? 0) >= RATE_LIMIT_MAX_GLOBAL) {
+    const retryAfter = Math.max(1, (globalRow?.t ?? now) + RATE_LIMIT_WINDOW_S - now);
+    return { allowed: false, retryAfter };
+  }
   const countRow = await db
     .prepare('SELECT COUNT(*) AS n FROM login_attempts WHERE ip = ? AND attempted_at >= ?')
     .bind(ip, windowStart)
     .first<{ n: number }>();
-  if ((countRow?.n ?? 0) >= RATE_LIMIT_MAX_ATTEMPTS) {
+  if ((countRow?.n ?? 0) >= RATE_LIMIT_MAX_PER_IP) {
     const oldestRow = await db
       .prepare('SELECT MIN(attempted_at) AS t FROM login_attempts WHERE ip = ? AND attempted_at >= ?')
       .bind(ip, windowStart)
