@@ -90,9 +90,11 @@ async function persistEmail(
     allContent: string,
     env: CloudflareEnv,
 ): Promise<Email> {
-    const result = env.ENABLE_AI_EXTRACT?.trim().toLowerCase() === 'true'
-        ? await extract(allContent, env)
-        : { ...DEFAULT_EXTRACT_RESULT };
+    // ENABLE_AI_EXTRACT 默认为开：只有显式设为 'false' 才跳过提取。
+    // （曾用 === 'true' 判断开启，但线上变量未生效导致 2026-10-01 起所有邮件被跳过提取，改回默认开。）
+    const result = env.ENABLE_AI_EXTRACT?.trim().toLowerCase() === 'false'
+        ? { ...DEFAULT_EXTRACT_RESULT }
+        : await extract(allContent, env);
 
     console.log(result.type, result.result, result.result_text);
 
