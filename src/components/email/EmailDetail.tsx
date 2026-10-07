@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Reply, Forward, CheckCheck } from "lucide-react";
+import { Mail, Reply, Forward, CheckCheck, AlertTriangle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import useTranslation from "@/lib/hooks/useTranslation";
@@ -203,6 +203,26 @@ export default function EmailDetail({ email }: { email: Email | null }) {
 
         <div className="border-b border-border"></div>
       </div>
+
+      {/* 内部冒充警告横幅：From 为 gear4ai.com 的入站按定义是伪造的 */}
+      {email.spoofSuspect === 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mx-6 mt-3 rounded-md border border-red-500/50 bg-red-500/10 px-4 py-3 flex items-start gap-3"
+        >
+          <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+              {t("spoofWarningTitle")}
+            </p>
+            <p className="text-sm text-red-600/90 dark:text-red-400/90 mt-1 leading-relaxed">
+              {t("spoofWarningBody")}
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* 内容区域 */}
       <ScrollArea className="flex-1 min-h-0">

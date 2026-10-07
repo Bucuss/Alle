@@ -8,6 +8,16 @@ import * as cheerio from 'cheerio';
 import { DEFAULT_EXTRACT_RESULT } from "@/types";
 import type { Email, NewEmail } from "@/types";
 
+/** 内部域名：alle 经 send_email 发出的邮件不会回流为入站，
+ *  因此任何入站邮件只要 From 域名是 gear4ai.com，按定义就是伪造的——无需 SPF/DMARC 即可判定 */
+const INTERNAL_DOMAIN = 'gear4ai.com';
+
+function isInternalSpoof(fromAddress: string | null): boolean {
+    if (!fromAddress) return false;
+    const domain = fromAddress.trim().toLowerCase().split('@').pop();
+    return domain === INTERNAL_DOMAIN;
+}
+
 
 function replaceTemplateAdvanced(template: string, email: Email): string {
     return template.replace(/{(\w+)}/g, (match, key) => {
@@ -79,6 +89,8 @@ async function buildBaseEmailData(
             isImportant: 0,
             importantReason: null,
             importantHandled: 0,
+            // 内部冒充防护：From 为内部域名的入站按定义是伪造的，打标后不再自动转发/推送通知
+            spoofSuspect: isInternalSpoof(emailFromAddress) ? 1 : 0,
         },
         allContent,
     };
@@ -166,8 +178,16 @@ export default async function storeEmail(
                 return;
             }
 
+            // 内部冒充防护：From 为内部域名的入站按定义是伪造的——
+            // 不再自动转发（防钓鱼链路经 catch-all 流到 Gmail），也不推送 Telegram/Webhook 通知；
+            // 仅入库 + Web 端横幅提示，人工复核
+            const isSpoof = base.spoofSuspect === 1;
+            if (isSpoof) {
+                console.warn(`Spoof suspect email blocked from forward/notify: from=${base.fromAddress} to=${envelopeTo} rule=${rule?.name || '(default)'}`);
+            }
+
             // 转发到指定邮箱（目标须为 Email Routing 已验证地址）
-            if (rule?.forwardTo) {
+            if (rule?.forwardTo && !isSpoof) {
                 for (const addr of parseForwardTargets(rule.forwardTo)) {
                     try {
                         await message.forward(addr);
@@ -196,10 +216,10 @@ export default async function storeEmail(
                 emailForNotify = buildVirtualEmail(base);
             }
 
-            if (rule?.notifyTelegram === 1) {
+            if (rule?.notifyTelegram === 1 && !isSpoof) {
                 await notifyTelegram(emailForNotify, env);
             }
-            if (rule?.notifyWebhook === 1) {
+            if (rule?.notifyWebhook === 1 && !isSpoof) {
                 await notifyWebhook(emailForNotify, env);
             }
             return;
@@ -207,13 +227,17 @@ export default async function storeEmail(
 
         // ---------- 兼容旧行为（未配置任何规则时） ----------
         const res = await persistEmail(base, allContent, env);
+        const isSpoofLegacy = res.spoofSuspect === 1;
+        if (isSpoofLegacy) {
+            console.warn(`Spoof suspect email blocked from notify (legacy path): from=${res.fromAddress}`);
+        }
 
-        if (env.WEBHOOK_URL && env.WEBHOOK_TEMPLATE && env.WEBHOOK_TYPE.split(',').includes(res.emailType)) {
+        if (!isSpoofLegacy && env.WEBHOOK_URL && env.WEBHOOK_TEMPLATE && env.WEBHOOK_TYPE.split(',').includes(res.emailType)) {
             await sendWebhook(replaceTemplateAdvanced(env.WEBHOOK_TEMPLATE, res), env.WEBHOOK_URL);
         }
 
         // 发送到Telegram Bot
-        if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID && env.TELEGRAM_TEMPLATE && env.TELEGRAM_TYPE && env.TELEGRAM_TYPE.split(',').includes(res.emailType)) {
+        if (!isSpoofLegacy && env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID && env.TELEGRAM_TEMPLATE && env.TELEGRAM_TYPE && env.TELEGRAM_TYPE.split(',').includes(res.emailType)) {
             await sendTelegramMessage(
                 replaceTemplateAdvanced(env.TELEGRAM_TEMPLATE, res),
                 env.TELEGRAM_BOT_TOKEN,

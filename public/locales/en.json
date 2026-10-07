@@ -120,5 +120,7 @@
   "deleteCategory": "Delete category",
   "deleteCategoryConfirm": "Delete category \"{{name}}\"? Existing emails keep their category label.",
   "important": "Important",
-  "markHandled": "Mark as handled"
+  "markHandled": "Mark as handled",
+  "spoofWarningTitle": "Sender spoofing warning",
+  "spoofWarningBody": "This message claims to be from a gear4ai.com internal address, but mail sent by alle never flows back as inbound — it is forged. Do not click its links or use any verification codes in it; it was not auto-forwarded or pushed as a notification."
 }

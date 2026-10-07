@@ -26,6 +26,8 @@ export interface Email {
   importantReason: string | null;
   // 用户在重要入口点"已处理"后为 1，不再出现在重要入口
   importantHandled: number;
+  // 内部冒充防护：From 域名为 gear4ai.com 的入站按定义为伪造，1=疑似伪造（不再自动转发/推送通知）
+  spoofSuspect: number;
 }
 
 export type NewEmail = Omit<Email, 'id'>;

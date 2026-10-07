@@ -141,6 +141,8 @@ export async function sendMail(env: CloudflareEnv, input: SendMailInput) {
     isImportant: 0,
     importantReason: null,
     importantHandled: 0,
+    // 自己发出的邮件不可能是内部冒充
+    spoofSuspect: 0,
   });
 
   await recordSend(env, {

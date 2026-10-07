@@ -120,5 +120,7 @@
   "deleteCategory": "删除分类",
   "deleteCategoryConfirm": "确定删除分类「{{name}}」吗？已有邮件的分类标记会保留。",
   "important": "重要邮件",
-  "markHandled": "标记为已处理"
+  "markHandled": "标记为已处理",
+  "spoofWarningTitle": "发件人冒充警告",
+  "spoofWarningBody": "这封邮件声称来自 gear4ai.com 内部地址，但 alle 发出的邮件不会回流为入站——它是伪造的。请勿点击其中的链接，也不要使用其中的验证码；它不会被自动转发或推送通知。"
 }

@@ -28,6 +28,8 @@ const email = sqliteTable('email', {
   importantReason: text('important_reason'),
   // 用户在重要邮件入口点"已处理"后置 1，该邮件不再出现在重要入口
   importantHandled: integer('important_handled').default(0),
+  // 内部冒充防护：From 域名为 gear4ai.com 的入站按定义为伪造，置 1（不再自动转发/推送通知，仅 Web 端横幅提示）
+  spoofSuspect: integer('spoof_suspect').default(0),
 });
 
 const UNCATEGORIZED = '__none__';
