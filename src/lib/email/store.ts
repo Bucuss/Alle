@@ -1,6 +1,7 @@
 import emailDB from "@/lib/db/email";
 import extract from "./extract";
 import { findMatchingRule, hasAnyRule, parseForwardTargets, parseForwardMap } from "./rules";
+import { sendForwardCopies } from "./forwardCopy";
 import sendWebhook from '@/lib/webhook/webhook'
 import sendTelegramMessage from '@/lib/telegram/telegram'
 import PostalMime from "postal-mime";
@@ -187,22 +188,22 @@ export default async function storeEmail(
             }
 
             // 转发到指定邮箱（目标须为 Email Routing 已验证地址）
-            // FORWARD_MAP（worker 变量）命中的收件人走专用路由：转发目标被变量覆盖，
-            // 不再走 D1 规则的 catch-all 默认转发；入库存储与 Telegram/Webhook 通知仍沿用命中的 D1 规则
-            const forwardMapTargets = parseForwardMap(env)[envelopeTo];
-            const forwardTargets = forwardMapTargets?.length
-                ? forwardMapTargets
-                : (rule?.forwardTo ? parseForwardTargets(rule.forwardTo) : []);
-            const forwardedBy = forwardMapTargets?.length ? 'FORWARD_MAP' : (rule?.name || '(default)');
-            if (forwardTargets.length > 0 && !isSpoof) {
-                for (const addr of forwardTargets) {
+            if (rule?.forwardTo && !isSpoof) {
+                for (const addr of parseForwardTargets(rule.forwardTo)) {
                     try {
                         await message.forward(addr);
-                        console.log(`Email to ${envelopeTo} forwarded to ${addr} by ${forwardedBy}`);
+                        console.log(`Email to ${envelopeTo} forwarded to ${addr} by rule: ${rule.name}`);
                     } catch (e) {
-                        console.error(`Forward to ${addr} failed (${forwardedBy}):`, e);
+                        console.error(`Forward to ${addr} failed (rule: ${rule.name}):`, e);
                     }
                 }
+            }
+
+            // FORWARD_MAP（worker 变量）：把邮件内容复制一份，经 send_email 发给配置的目标邮箱；
+            // 不改变 D1 规则原有的转发/存储/通知行为（命中 catch-all 的邮件照常转发到默认地址）
+            const copyTargets = parseForwardMap(env)[envelopeTo];
+            if (copyTargets?.length && !isSpoof) {
+                await sendForwardCopies(env, base, envelopeTo, copyTargets);
             }
 
             // 存储（网页端可见 + AI 提取归类）
@@ -250,6 +251,11 @@ export default async function storeEmail(
                 env.TELEGRAM_BOT_TOKEN,
                 env.TELEGRAM_CHAT_ID
             );
+        }
+        // FORWARD_MAP（worker 变量）：无 D1 规则时同样生效——复制内容发给配置的目标邮箱
+        const copyTargetsLegacy = parseForwardMap(env)[envelopeTo];
+        if (copyTargetsLegacy?.length && !isSpoofLegacy) {
+            await sendForwardCopies(env, base, envelopeTo, copyTargetsLegacy);
         }
         console.log("Email stored successfully:", {
             id: res.id,
