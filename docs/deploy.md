@@ -54,6 +54,7 @@
 | `AUTO_DEL_TYPE`         |  ❌  | 自动删除过期邮件类型,多个类型用逗号分隔                |
 | `AUTO_DEL_CRON`         |  ❌  | 自动删除过期邮件定时任务,默认不启用                    |
 | `AUTO_DEL_TIME`         |  ❌  | 自动删除过期邮件时间,单位秒                            |
+| `FORWARD_MAP`           |  ❌  | 指定收件人转发映射(JSON)，见下方说明                   |
 | `JWT_MIN_TTL`           |  ❌  | JWT 最小 TTL,默认300s                                 |
 | `JWT_MAX_TTL`           |  ❌  | JWT 最大 TTL,默认6000s                                |
 | `TELEGRAM_TEMPLATE`     |  ❌  | Telegram 消息模板                                     |
@@ -125,6 +126,16 @@ AUTO_DEL_TYPE=auth_code,auth_link,service_link,subscription_link,other_link
 `AUTO_DEL_TIME` 自动删除过期邮件时间,单位秒
 
 `AUTO_DEL_CRON` 自动删除过期邮件定时任务
+
+## 指定收件人转发映射
+
+`FORWARD_MAP` 为 JSON 对象：key 是需要转发的收件人地址（不区分大小写），value 是转发目标邮箱列表（多个目标用数组，单个目标可直接写字符串）。命中的邮件走专用路由——转发到配置的目标，不再走 D1 catch-all 的默认转发；入库存储与 Telegram/Webhook 通知仍按 D1 规则执行。内部冒充防护同样生效（From 为 gear4ai.com 的伪造邮件不会被转发）。
+
+```
+FORWARD_MAP={"billing@gear4ai.com": ["accounting@company.com", "boss@company.com"], "alerts@gear4ai.com": "oncall@company.com"}
+```
+
+注意：转发目标必须是 Cloudflare Email Routing 里已验证的地址；不要把目标设为 @gear4ai.com 地址，否则会形成转发循环。
 
 ## WebHook 通知
 

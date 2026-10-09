@@ -54,6 +54,7 @@ Copy to GitHub Secrets as `D1_DATABASE_ID`
 | `AUTO_DEL_TYPE`         |    ❌    | Automatic deletion of expired email types, multiple types separated by commas                |
 | `AUTO_DEL_CRON`         |    ❌    | Cron job for automatic deletion of expired emails, disabled by default                    |
 | `AUTO_DEL_TIME`         |    ❌    | Time for automatic deletion of expired emails, in seconds                            |
+| `FORWARD_MAP`           |    ❌    | Per-recipient forward mapping (JSON), see below                                     |
 | `JWT_MIN_TTL`           |    ❌    | JWT minimum TTL, defaults to 300s                                 |
 | `JWT_MAX_TTL`           |    ❌    | JWT maximum TTL, defaults to 6000s                                |
 | `TELEGRAM_TEMPLATE`     |    ❌    | Telegram message template                                          |
@@ -124,6 +125,16 @@ AUTO_DEL_TYPE=auth_code,auth_link,service_link,subscription_link,other_link
 `AUTO_DEL_TIME` automatic deletion time for expired emails, in seconds
 
 `AUTO_DEL_CRON` cron job for automatic deletion of expired emails
+
+## Per-Recipient Forward Mapping
+
+`FORWARD_MAP` is a JSON object: keys are recipient addresses to forward (case-insensitive), values are lists of destination mailboxes (use an array for multiple destinations, or a plain string for one). Matched mail takes a dedicated route — forwarded to the configured destinations instead of the D1 catch-all default; storage and Telegram/Webhook notifications still follow the matched D1 rule. The internal-spoofing guard applies as well (forged mail with a gear4ai.com From address is never forwarded).
+
+```
+FORWARD_MAP={"billing@gear4ai.com": ["accounting@company.com", "boss@company.com"], "alerts@gear4ai.com": "oncall@company.com"}
+```
+
+Note: destinations must be verified addresses in Cloudflare Email Routing; do not point a destination at a @gear4ai.com address or you will create a forwarding loop.
 
 ## WebHook Notification
 

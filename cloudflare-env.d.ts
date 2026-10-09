@@ -9,6 +9,7 @@ declare namespace Cloudflare {
 		ENABLE_AUTO_DEL: "false";
 		AUTO_DEL_TYPE: "auth_code,auth_link";
 		AUTO_DEL_TIME: "3600";
+		FORWARD_MAP: string;
 		WEBHOOK_URL: "";
 		WEBHOOK_TYPE: "";
 		WEBHOOK_TEMPLATE: "";

@@ -44,3 +44,28 @@ export function parseForwardTargets(forwardTo: string | null): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+/** 解析 worker 变量 FORWARD_MAP：指定收件人 → 固定转发目标列表。
+ *  格式：JSON 对象，如 {"billing@gear4ai.com": ["a@x.com", "b@y.com"]}；
+ *  单个目标也可直接写字符串。key 不区分大小写；
+ *  变量为空或解析失败时返回空对象（不影响既有 D1 规则）。
+ */
+export function parseForwardMap(env: CloudflareEnv): Record<string, string[]> {
+  const raw = (env.FORWARD_MAP || '').trim();
+  if (!raw) return {};
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    const map: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(obj || {})) {
+      const key = String(k).toLowerCase().trim();
+      const targets = (Array.isArray(v) ? v : [v])
+        .map((s) => String(s).trim())
+        .filter(Boolean);
+      if (key && targets.length > 0) map[key] = targets;
+    }
+    return map;
+  } catch (e) {
+    console.error('FORWARD_MAP 解析失败，已忽略该变量:', e);
+    return {};
+  }
+}

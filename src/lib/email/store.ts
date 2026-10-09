@@ -1,6 +1,6 @@
 import emailDB from "@/lib/db/email";
 import extract from "./extract";
-import { findMatchingRule, hasAnyRule, parseForwardTargets } from "./rules";
+import { findMatchingRule, hasAnyRule, parseForwardTargets, parseForwardMap } from "./rules";
 import sendWebhook from '@/lib/webhook/webhook'
 import sendTelegramMessage from '@/lib/telegram/telegram'
 import PostalMime from "postal-mime";
@@ -187,13 +187,20 @@ export default async function storeEmail(
             }
 
             // 转发到指定邮箱（目标须为 Email Routing 已验证地址）
-            if (rule?.forwardTo && !isSpoof) {
-                for (const addr of parseForwardTargets(rule.forwardTo)) {
+            // FORWARD_MAP（worker 变量）命中的收件人走专用路由：转发目标被变量覆盖，
+            // 不再走 D1 规则的 catch-all 默认转发；入库存储与 Telegram/Webhook 通知仍沿用命中的 D1 规则
+            const forwardMapTargets = parseForwardMap(env)[envelopeTo];
+            const forwardTargets = forwardMapTargets?.length
+                ? forwardMapTargets
+                : (rule?.forwardTo ? parseForwardTargets(rule.forwardTo) : []);
+            const forwardedBy = forwardMapTargets?.length ? 'FORWARD_MAP' : (rule?.name || '(default)');
+            if (forwardTargets.length > 0 && !isSpoof) {
+                for (const addr of forwardTargets) {
                     try {
                         await message.forward(addr);
-                        console.log(`Email to ${envelopeTo} forwarded to ${addr} by rule: ${rule.name}`);
+                        console.log(`Email to ${envelopeTo} forwarded to ${addr} by ${forwardedBy}`);
                     } catch (e) {
-                        console.error(`Forward to ${addr} failed (rule: ${rule.name}):`, e);
+                        console.error(`Forward to ${addr} failed (${forwardedBy}):`, e);
                     }
                 }
             }
